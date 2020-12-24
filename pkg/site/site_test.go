@@ -1,6 +1,7 @@
 package site
 
 import (
+	"context"
 	"fmt"
 	"github.com/KubeOperator/FusionComputeGolangSDK/pkg/client"
 	"log"
@@ -8,14 +9,15 @@ import (
 )
 
 func TestManager_List(t *testing.T) {
+	ctx := context.Background()
 	c := client.NewFusionComputeClient("https://100.199.16.208:7443", "kubeoperator", "Calong@2015")
-	err := c.Connect()
+	err := c.Connect(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer c.DisConnect()
+	defer c.DisConnect(ctx)
 	m := NewManager(c)
-	ss, err := m.ListSite()
+	ss, err := m.ListSite(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}

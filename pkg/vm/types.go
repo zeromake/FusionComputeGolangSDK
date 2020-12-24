@@ -1,5 +1,7 @@
 package vm
 
+import "github.com/KubeOperator/FusionComputeGolangSDK/pkg/common"
+
 type Vm struct {
 	Urn               string `json:"urn,omitempty,omitempty"`
 	Uri               string `json:"uri,omitempty"`
@@ -33,6 +35,7 @@ type Vm struct {
 
 type Customization struct {
 	OsType             string             `json:"osType,omitempty"`
+	OsVersion          int                `json:"osVersion,omitempty"`
 	Hostname           string             `json:"hostname,omitempty"`
 	IsUpdateVmPassword bool               `json:"isUpdateVmPassword,omitempty"`
 	Password           string             `json:"password,omitempty"`
@@ -130,4 +133,20 @@ type OsOption struct {
 type ImportTemplateResponse struct {
 	TaskUrn string `json:"taskUrn,omitempty"`
 	TaskUri string `json:"taskUri,omitempty"`
+}
+
+type Version struct {
+	ID         int    `json:"id,omitempty"`
+	VersionDes string `json:"versionDes,omitempty"`
+}
+
+type VersionResponse struct {
+	Windows []Version `json:"windows"`
+	Linux   []Version `json:"linux"`
+	Other   []Version `json:"other"`
+}
+
+type QueryVMParams struct {
+	common.Page
+	IsTemplate bool
 }

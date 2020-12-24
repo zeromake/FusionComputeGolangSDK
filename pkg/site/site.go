@@ -1,6 +1,7 @@
 package site
 
 import (
+	"context"
 	"encoding/json"
 	"github.com/KubeOperator/FusionComputeGolangSDK/pkg/client"
 	"github.com/KubeOperator/FusionComputeGolangSDK/pkg/common"
@@ -11,8 +12,8 @@ const (
 )
 
 type Interface interface {
-	ListSite() ([]Site, error)
-	GetSite(siteUri string) (*Site, error)
+	ListSite(ctx context.Context) ([]Site, error)
+	GetSite(ctx context.Context, siteUri string) (*Site, error)
 }
 
 func NewManager(client client.FusionComputeClient) Interface {
@@ -23,13 +24,13 @@ type manager struct {
 	client client.FusionComputeClient
 }
 
-func (m *manager) GetSite(siteUri string) (*Site, error) {
+func (m *manager) GetSite(ctx context.Context, siteUri string) (*Site, error) {
 	var site Site
 	api, err := m.client.GetApiClient()
 	if err != nil {
 		return nil, err
 	}
-	resp, err := api.R().Get(siteUri)
+	resp, err := api.R().SetContext(ctx).Get(siteUri)
 	if err != nil {
 		return nil, err
 	}
@@ -45,13 +46,13 @@ func (m *manager) GetSite(siteUri string) (*Site, error) {
 	return &site, nil
 }
 
-func (m *manager) ListSite() ([]Site, error) {
+func (m *manager) ListSite(ctx context.Context) ([]Site, error) {
 	var sites []Site
 	api, err := m.client.GetApiClient()
 	if err != nil {
 		return nil, err
 	}
-	resp, err := api.R().Get(siteUrl)
+	resp, err := api.R().SetContext(ctx).Get(siteUrl)
 	if err != nil {
 		return nil, err
 	}

@@ -1,6 +1,7 @@
 package network
 
 import (
+	"context"
 	"encoding/json"
 	"github.com/KubeOperator/FusionComputeGolangSDK/pkg/client"
 	"github.com/KubeOperator/FusionComputeGolangSDK/pkg/common"
@@ -17,10 +18,10 @@ const (
 )
 
 type Manager interface {
-	ListDVSwitch() ([]DVSwitch, error)
-	ListPortGroupBySwitch(dvSwitchIdUri string) ([]PortGroup, error)
-	ListPortGroupInUseIp(portGroupUrn string) ([]string, error)
-	ListPortGroup() ([]PortGroup, error)
+	ListDVSwitch(ctx context.Context) ([]DVSwitch, error)
+	ListPortGroupBySwitch(ctx context.Context, dvSwitchIdUri string) ([]PortGroup, error)
+	ListPortGroupInUseIp(ctx context.Context, portGroupUrn string) ([]string, error)
+	ListPortGroup(ctx context.Context) ([]PortGroup, error)
 }
 
 func NewManager(client client.FusionComputeClient, siteUri string) Manager {
@@ -32,13 +33,13 @@ type manager struct {
 	siteUri string
 }
 
-func (m *manager) ListPortGroup() ([]PortGroup, error) {
+func (m *manager) ListPortGroup(ctx context.Context) ([]PortGroup, error) {
 	var portGroups []PortGroup
 	api, err := m.client.GetApiClient()
 	if err != nil {
 		return nil, err
 	}
-	resp, err := api.R().Get(strings.Replace(portGroupUrl, siteMask, m.siteUri, -1))
+	resp, err := api.R().SetContext(ctx).Get(strings.Replace(portGroupUrl, siteMask, m.siteUri, -1))
 	if err != nil {
 		return nil, err
 	}
@@ -55,14 +56,14 @@ func (m *manager) ListPortGroup() ([]PortGroup, error) {
 	return portGroups, nil
 }
 
-func (m *manager) ListPortGroupBySwitch(dvSwitchIdUri string) ([]PortGroup, error) {
+func (m *manager) ListPortGroupBySwitch(ctx context.Context, dvSwitchIdUri string) ([]PortGroup, error) {
 
 	var portGroups []PortGroup
 	api, err := m.client.GetApiClient()
 	if err != nil {
 		return nil, err
 	}
-	resp, err := api.R().Get(path.Join(dvSwitchIdUri, "portgroups"))
+	resp, err := api.R().SetContext(ctx).Get(path.Join(dvSwitchIdUri, "portgroups"))
 	if err != nil {
 		return nil, err
 	}
@@ -79,13 +80,13 @@ func (m *manager) ListPortGroupBySwitch(dvSwitchIdUri string) ([]PortGroup, erro
 	return portGroups, nil
 }
 
-func (m *manager) ListDVSwitch() ([]DVSwitch, error) {
+func (m *manager) ListDVSwitch(ctx context.Context) ([]DVSwitch, error) {
 	var dvSwitchs []DVSwitch
 	api, err := m.client.GetApiClient()
 	if err != nil {
 		return nil, err
 	}
-	resp, err := api.R().Get(strings.Replace(dvSwitchUrl, siteMask, m.siteUri, -1))
+	resp, err := api.R().SetContext(ctx).Get(strings.Replace(dvSwitchUrl, siteMask, m.siteUri, -1))
 	if err != nil {
 		return nil, err
 	}
@@ -102,13 +103,13 @@ func (m *manager) ListDVSwitch() ([]DVSwitch, error) {
 	return dvSwitchs, nil
 }
 
-func (m *manager) ListPortGroupInUseIp(portGroupUrn string) ([]string, error) {
+func (m *manager) ListPortGroupInUseIp(ctx context.Context, portGroupUrn string) ([]string, error) {
 	var results []string
 	api, err := m.client.GetApiClient()
 	if err != nil {
 		return nil, err
 	}
-	resp, err := api.R().Get(strings.Replace(strings.Replace(vmScopeUrl, siteMask, m.siteUri, -1), "<resource_urn>", portGroupUrn, -1))
+	resp, err := api.R().SetContext(ctx).Get(strings.Replace(strings.Replace(vmScopeUrl, siteMask, m.siteUri, -1), "<resource_urn>", portGroupUrn, -1))
 	if err != nil {
 		return nil, err
 	}

@@ -1,7 +1,7 @@
 package storage
 
 import (
-	"encoding/json"
+	"context"
 	"github.com/KubeOperator/FusionComputeGolangSDK/pkg/client"
 	"github.com/KubeOperator/FusionComputeGolangSDK/pkg/common"
 	"strings"
@@ -13,7 +13,7 @@ const (
 )
 
 type Interface interface {
-	ListDataStore() ([]Datastore, error)
+	ListDataStore(ctx context.Context) ([]Datastore, error)
 }
 
 func NewManager(client client.FusionComputeClient, siteUri string) Interface {
@@ -25,25 +25,24 @@ type manager struct {
 	siteUri string
 }
 
-func (m *manager) ListDataStore() ([]Datastore, error) {
+func (m *manager) ListDataStore(ctx context.Context) ([]Datastore, error) {
 	var adapters []Datastore
 	api, err := m.client.GetApiClient()
 	if err != nil {
 		return nil, err
 	}
-	resp, err := api.R().Get(strings.Replace(datastoreUrl, siteMask, m.siteUri, -1))
+	var listAdapterResponse ListDataStoreResponse
+	resp, err := api.R().
+		SetContext(ctx).
+		SetResult(&listAdapterResponse).
+		Get(strings.Replace(datastoreUrl, siteMask, m.siteUri, -1))
 	if err != nil {
 		return nil, err
 	}
-	if resp.IsSuccess() {
-		var listAdapterResponse ListDataStoreResponse
-		err := json.Unmarshal(resp.Body(), &listAdapterResponse)
-		if err != nil {
-			return nil, err
-		}
-		adapters = listAdapterResponse.Datastores
-	} else {
+	if !resp.IsSuccess() {
 		return nil, common.FormatHttpError(resp)
+	} else {
+		adapters = listAdapterResponse.Datastores
 	}
 	return adapters, nil
 }

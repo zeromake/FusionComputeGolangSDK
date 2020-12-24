@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+
 	"github.com/go-resty/resty/v2"
 )
 

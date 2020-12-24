@@ -1,6 +1,7 @@
 package client
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -17,8 +18,8 @@ const (
 )
 
 type Auth interface {
-	Login() error
-	Logout() error
+	Login(ctx context.Context) error
+	Logout(ctx context.Context) error
 }
 
 func NewAuth(client FusionComputeClient) Auth {
@@ -29,14 +30,14 @@ type auth struct {
 	client FusionComputeClient
 }
 
-func (a *auth) Login() error {
+func (a *auth) Login(ctx context.Context) error {
 	host := a.client.GetHost()
 	r := common.NewHttpClient()
 	r.SetHostURL(host).
 		SetHeader(XAuthUser, a.client.GetUser()).
 		SetHeader(XAuthKey, encodePassword(a.client.GetPassword())).
-		SetHeader(XAuthUserType, "2")
-	resp, err := r.R().Post(authUri)
+		SetHeader(XAuthUserType, a.client.GetUserType())
+	resp, err := r.R().SetContext(ctx).Post(authUri)
 	if err != nil {
 		return err
 	}
@@ -51,12 +52,12 @@ func (a *auth) Login() error {
 	return nil
 }
 
-func (a *auth) Logout() error {
+func (a *auth) Logout(ctx context.Context) error {
 	host := a.client.GetHost()
 	r := common.NewHttpClient()
 	r.SetHostURL(host).
 		SetHeader(XAuthToken, string(a.client.GetSession()))
-	resp, err := r.R().Delete(authUri)
+	resp, err := r.R().SetContext(ctx).Delete(authUri)
 	if err != nil {
 		return err
 	}

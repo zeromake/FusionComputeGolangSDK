@@ -2,6 +2,7 @@ package vm
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -18,11 +19,12 @@ const (
 )
 
 type Manager interface {
-	ListVm(isTemplate bool) ([]Vm, error)
-	GetVM(vmUri string) (*Vm, error)
-	CloneVm(templateUri string, request CloneVmRequest) (*CloneVmResponse, error)
-	DeleteVm(vmUri string) (*DeleteVmResponse, error)
-	UploadImage(vmUri string, request ImportTemplateRequest) (*ImportTemplateResponse, error)
+	ListVm(ctx context.Context, params *QueryVMParams) (*ListVmResponse, error)
+	ListVMVersion(ctx context.Context) (*VersionResponse, error)
+	GetVM(ctx context.Context, vmUri string) (*Vm, error)
+	CloneVm(ctx context.Context, templateUri string, request CloneVmRequest) (*CloneVmResponse, error)
+	DeleteVm(ctx context.Context, vmUri string) (*DeleteVmResponse, error)
+	UploadImage(ctx context.Context, vmUri string, request ImportTemplateRequest) (*ImportTemplateResponse, error)
 }
 
 func NewManager(client client.FusionComputeClient, siteUri string) Manager {
@@ -34,7 +36,7 @@ type manager struct {
 	siteUri string
 }
 
-func (m *manager) CloneVm(templateUri string, request CloneVmRequest) (*CloneVmResponse, error) {
+func (m *manager) CloneVm(ctx context.Context, templateUri string, request CloneVmRequest) (*CloneVmResponse, error) {
 	for n := range request.VmCustomization.NicSpecification {
 		if !strings.Contains(request.VmCustomization.NicSpecification[n].Netmask, ".") {
 			b, err := strconv.Atoi(request.VmCustomization.NicSpecification[0].Netmask)
@@ -49,7 +51,7 @@ func (m *manager) CloneVm(templateUri string, request CloneVmRequest) (*CloneVmR
 		}
 	}
 
-	vm, err := m.GetVM(templateUri)
+	vm, err := m.GetVM(ctx, templateUri)
 	if err != nil {
 		return nil, err
 	}
@@ -64,7 +66,7 @@ func (m *manager) CloneVm(templateUri string, request CloneVmRequest) (*CloneVmR
 	if err != nil {
 		return nil, err
 	}
-	resp, err := api.R().SetBody(&request).Post(path.Join(templateUri, "action", "clone"))
+	resp, err := api.R().SetContext(ctx).SetBody(&request).Post(path.Join(templateUri, "action", "clone"))
 	if err != nil {
 		return nil, err
 	}
@@ -80,41 +82,44 @@ func (m *manager) CloneVm(templateUri string, request CloneVmRequest) (*CloneVmR
 	return &cloneVmResponse, nil
 }
 
-func (m *manager) ListVm(isTemplate bool) ([]Vm, error) {
-	var vms []Vm
+func (m *manager) ListVm(ctx context.Context, params *QueryVMParams) (*ListVmResponse, error) {
+	var listVmResponse ListVmResponse
 	api, err := m.client.GetApiClient()
 	if err != nil {
 		return nil, err
 	}
-	request := api.R()
-	if isTemplate {
+	request := api.R().SetContext(ctx)
+	if params.IsTemplate {
 		request.SetQueryParam("isTemplate", "true")
+	}
+	if params.Limit != 0 {
+		request.SetQueryParam("limit", strconv.FormatInt(params.Limit, 10))
+	}
+	if params.Limit != 0 {
+		request.SetQueryParam("offset", strconv.FormatInt(params.Offset, 10))
 	}
 	resp, err := request.Get(strings.Replace(vmUrl, siteMask, m.siteUri, -1))
 	if err != nil {
 		return nil, err
 	}
 	if resp.IsSuccess() {
-		var listVmResponse ListVmResponse
 		err := json.Unmarshal(resp.Body(), &listVmResponse)
 		if err != nil {
 			return nil, err
 		}
-		vms = listVmResponse.Vms
-
 	} else {
 		return nil, common.FormatHttpError(resp)
 	}
-	return vms, nil
+	return &listVmResponse, nil
 }
 
-func (m *manager) DeleteVm(vmUri string) (*DeleteVmResponse, error) {
+func (m *manager) DeleteVm(ctx context.Context, vmUri string) (*DeleteVmResponse, error) {
 	var deleteVmResponse DeleteVmResponse
 	api, err := m.client.GetApiClient()
 	if err != nil {
 		return nil, err
 	}
-	resp, err := api.R().Delete(vmUri)
+	resp, err := api.R().SetContext(ctx).Delete(vmUri)
 	if err != nil {
 		return nil, err
 	}
@@ -129,13 +134,13 @@ func (m *manager) DeleteVm(vmUri string) (*DeleteVmResponse, error) {
 	return &deleteVmResponse, nil
 }
 
-func (m *manager) GetVM(vmUri string) (*Vm, error) {
+func (m *manager) GetVM(ctx context.Context, vmUri string) (*Vm, error) {
 	var item Vm
 	api, err := m.client.GetApiClient()
 	if err != nil {
 		return nil, err
 	}
-	resp, err := api.R().Get(vmUri)
+	resp, err := api.R().SetContext(ctx).Get(vmUri)
 
 	if err != nil {
 		return nil, err
@@ -151,13 +156,34 @@ func (m *manager) GetVM(vmUri string) (*Vm, error) {
 	return &item, nil
 }
 
-func (m *manager) UploadImage(vmUri string, request ImportTemplateRequest) (*ImportTemplateResponse, error) {
+func (m *manager) UploadImage(ctx context.Context, vmUri string, request ImportTemplateRequest) (*ImportTemplateResponse, error) {
 	var res ImportTemplateResponse
 	api, err := m.client.GetApiClient()
 	if err != nil {
 		return nil, err
 	}
-	resp, err := api.R().SetBody(&request).Post(path.Join(vmUri, "action", "import"))
+	resp, err := api.R().SetContext(ctx).SetBody(&request).Post(path.Join(vmUri, "action", "import"))
+	if err != nil {
+		return nil, err
+	}
+	if resp.IsSuccess() {
+		err := json.Unmarshal(resp.Body(), &res)
+		if err != nil {
+			return nil, err
+		}
+		return &res, nil
+	} else {
+		return nil, common.FormatHttpError(resp)
+	}
+}
+
+func (m *manager) ListVMVersion(ctx context.Context) (*VersionResponse, error) {
+	var res VersionResponse
+	api, err := m.client.GetApiClient()
+	if err != nil {
+		return nil, err
+	}
+	resp, err := api.R().SetContext(ctx).Get(path.Join(strings.Replace(vmUrl, siteMask, m.siteUri, -1), "osversions"))
 	if err != nil {
 		return nil, err
 	}

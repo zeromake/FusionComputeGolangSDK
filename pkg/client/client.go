@@ -1,6 +1,7 @@
 package client
 
 import (
+	"context"
 	"errors"
 	"github.com/KubeOperator/FusionComputeGolangSDK/pkg/common"
 	"github.com/go-resty/resty/v2"
@@ -9,14 +10,16 @@ import (
 type Session string
 
 type FusionComputeClient interface {
-	Connect() error
-	DisConnect() error
+	Connect(ctx context.Context) error
+	DisConnect(ctx context.Context) error
 	SetSession(token string)
 	GetSession() Session
 	GetHost() string
 	GetUser() string
 	GetPassword() string
 	GetApiClient() (*resty.Client, error)
+	GetUserType() string
+	SetUserType(userType string)
 }
 
 func NewFusionComputeClient(host string, user string, password string) FusionComputeClient {
@@ -24,6 +27,7 @@ func NewFusionComputeClient(host string, user string, password string) FusionCom
 		user:     user,
 		password: password,
 		host:     host,
+		userType: "2",
 	}
 }
 
@@ -32,6 +36,15 @@ type fusionComputeClient struct {
 	user     string
 	password string
 	host     string
+	userType string
+}
+
+func (f *fusionComputeClient) GetUserType() string {
+	return f.userType
+}
+
+func (f *fusionComputeClient) SetUserType(userType string) {
+	f.userType = userType
 }
 
 func (f *fusionComputeClient) SetSession(token string) {
@@ -42,18 +55,18 @@ func (f *fusionComputeClient) GetSession() Session {
 	return f.session
 }
 
-func (f *fusionComputeClient) Connect() error {
+func (f *fusionComputeClient) Connect(ctx context.Context) error {
 	a := NewAuth(f)
-	err := a.Login()
+	err := a.Login(ctx)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (f *fusionComputeClient) DisConnect() error {
+func (f *fusionComputeClient) DisConnect(ctx context.Context) error {
 	a := NewAuth(f)
-	err := a.Logout()
+	err := a.Logout(ctx)
 	if err != nil {
 		return err
 	}

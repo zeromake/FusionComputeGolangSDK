@@ -1,6 +1,7 @@
 package task
 
 import (
+	"context"
 	"encoding/json"
 	"github.com/KubeOperator/FusionComputeGolangSDK/pkg/client"
 	"github.com/KubeOperator/FusionComputeGolangSDK/pkg/common"
@@ -8,7 +9,7 @@ import (
 )
 
 type Manager interface {
-	Get(taskUri string) (*Task, error)
+	Get(ctx context.Context, taskUri string) (*Task, error)
 }
 
 func NewManager(client client.FusionComputeClient, siteUri string) Manager {
@@ -20,13 +21,13 @@ type manager struct {
 	siteUri string
 }
 
-func (m *manager) Get(taskUri string) (*Task, error) {
+func (m *manager) Get(ctx context.Context, taskUri string) (*Task, error) {
 	var task Task
 	api, err := m.client.GetApiClient()
 	if err != nil {
 		return nil, err
 	}
-	resp, err := api.R().Get(path.Join(taskUri))
+	resp, err := api.R().SetContext(ctx).Get(path.Join(taskUri))
 	if err != nil {
 		return nil, err
 	}
