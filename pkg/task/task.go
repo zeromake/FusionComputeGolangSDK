@@ -2,10 +2,10 @@ package task
 
 import (
 	"context"
-	"encoding/json"
+	"path"
+
 	"github.com/KubeOperator/FusionComputeGolangSDK/pkg/client"
 	"github.com/KubeOperator/FusionComputeGolangSDK/pkg/common"
-	"path"
 )
 
 type Manager interface {
@@ -27,16 +27,14 @@ func (m *manager) Get(ctx context.Context, taskUri string) (*Task, error) {
 	if err != nil {
 		return nil, err
 	}
-	resp, err := api.R().SetContext(ctx).Get(path.Join(taskUri))
+	resp, err := api.R().
+		SetContext(ctx).
+		SetResult(&task).
+		Get(path.Join(taskUri))
 	if err != nil {
 		return nil, err
 	}
-	if resp.IsSuccess() {
-		err := json.Unmarshal(resp.Body(), &task)
-		if err != nil {
-			return nil, err
-		}
-	} else {
+	if !resp.IsSuccess() {
 		return nil, common.FormatHttpError(resp)
 	}
 	return &task, nil

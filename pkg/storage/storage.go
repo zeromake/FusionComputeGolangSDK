@@ -2,14 +2,14 @@ package storage
 
 import (
 	"context"
+	"fmt"
 	"github.com/KubeOperator/FusionComputeGolangSDK/pkg/client"
 	"github.com/KubeOperator/FusionComputeGolangSDK/pkg/common"
-	"strings"
 )
 
 const (
-	siteMask     = "<site_uri>"
-	datastoreUrl = "<site_uri>/datastores"
+	//siteMask     = "<site_uri>"
+	datastoreUrl = "%s/datastores"
 )
 
 type Interface interface {
@@ -35,7 +35,7 @@ func (m *manager) ListDataStore(ctx context.Context) ([]Datastore, error) {
 	resp, err := api.R().
 		SetContext(ctx).
 		SetResult(&listAdapterResponse).
-		Get(strings.Replace(datastoreUrl, siteMask, m.siteUri, -1))
+		Get(fmt.Sprintf(datastoreUrl, m.siteUri))
 	if err != nil {
 		return nil, err
 	}

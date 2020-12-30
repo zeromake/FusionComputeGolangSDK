@@ -2,7 +2,6 @@ package cluster
 
 import (
 	"context"
-	"encoding/json"
 	"github.com/KubeOperator/FusionComputeGolangSDK/pkg/client"
 	"github.com/KubeOperator/FusionComputeGolangSDK/pkg/common"
 	"strings"
@@ -27,25 +26,21 @@ type manager struct {
 }
 
 func (m *manager) ListCluster(ctx context.Context) ([]Cluster, error) {
-	var clusters []Cluster
+	var listClusterResponse ListClusterResponse
 	api, err := m.client.GetApiClient()
 	if err != nil {
 		return nil, err
 	}
-	resp, err := api.R().SetContext(ctx).Get(strings.Replace(clusterUrl, siteMask, m.siteUri, -1))
+	resp, err := api.R().
+		SetContext(ctx).
+		SetResult(&listClusterResponse).
+		Get(strings.Replace(clusterUrl, siteMask, m.siteUri, -1))
 	if err != nil {
 		return nil, err
 	}
-	if resp.IsSuccess() {
-		var listClusterResponse ListClusterResponse
-		err := json.Unmarshal(resp.Body(), &listClusterResponse)
-		if err != nil {
-			return nil, err
-		}
-		clusters = listClusterResponse.Clusters
-	} else {
+	if !resp.IsSuccess() {
 		return nil, common.FormatHttpError(resp)
 	}
-	return clusters, nil
+	return listClusterResponse.Clusters, nil
 
 }

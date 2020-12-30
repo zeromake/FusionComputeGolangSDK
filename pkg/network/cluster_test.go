@@ -19,7 +19,7 @@ func TestManager_List(t *testing.T) {
 	defer c.DisConnect(ctx)
 
 	sm := site.NewManager(c)
-	ss, err := sm.ListSite()
+	ss, err := sm.ListSite(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}

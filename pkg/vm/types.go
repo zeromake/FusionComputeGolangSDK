@@ -66,6 +66,15 @@ type CloneVmRequest struct {
 	VmCustomization Customization `json:"vmCustomization,omitempty"`
 }
 
+type UpdateVmRequest struct {
+	Name        string  `json:"name,omitempty"`
+	Description string  `json:"description,omitempty"`
+	Group       string  `json:"group,omitempty"`
+	Location    string  `json:"location,omitempty"`
+	Cpu         *Cpu    `json:"cpu,omitempty"`
+	Memory      *Memory `json:"memory,omitempty"`
+}
+
 type Config struct {
 	Cpu    Cpu    `json:"cpu,omitempty"`
 	Memory Memory `json:"memory,omitempty"`

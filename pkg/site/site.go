@@ -2,7 +2,6 @@ package site
 
 import (
 	"context"
-	"encoding/json"
 	"github.com/KubeOperator/FusionComputeGolangSDK/pkg/client"
 	"github.com/KubeOperator/FusionComputeGolangSDK/pkg/common"
 )
@@ -30,16 +29,14 @@ func (m *manager) GetSite(ctx context.Context, siteUri string) (*Site, error) {
 	if err != nil {
 		return nil, err
 	}
-	resp, err := api.R().SetContext(ctx).Get(siteUri)
+	resp, err := api.R().
+		SetContext(ctx).
+		SetResult(&site).
+		Get(siteUri)
 	if err != nil {
 		return nil, err
 	}
-	if resp.IsSuccess() {
-		err := json.Unmarshal(resp.Body(), &site)
-		if err != nil {
-			return nil, err
-		}
-	} else {
+	if !resp.IsSuccess() {
 		return nil, common.FormatHttpError(resp)
 	}
 
@@ -47,24 +44,20 @@ func (m *manager) GetSite(ctx context.Context, siteUri string) (*Site, error) {
 }
 
 func (m *manager) ListSite(ctx context.Context) ([]Site, error) {
-	var sites []Site
+	var listSiteResponse ListSiteResponse
 	api, err := m.client.GetApiClient()
 	if err != nil {
 		return nil, err
 	}
-	resp, err := api.R().SetContext(ctx).Get(siteUrl)
+	resp, err := api.R().
+		SetContext(ctx).
+		SetResult(&listSiteResponse).
+		Get(siteUrl)
 	if err != nil {
 		return nil, err
 	}
-	if resp.IsSuccess() {
-		var listSiteResponse ListSiteResponse
-		err := json.Unmarshal(resp.Body(), &listSiteResponse)
-		if err != nil {
-			return nil, err
-		}
-		sites = listSiteResponse.Sites
-	} else {
+	if !resp.IsSuccess() {
 		return nil, common.FormatHttpError(resp)
 	}
-	return sites, nil
+	return listSiteResponse.Sites, nil
 }

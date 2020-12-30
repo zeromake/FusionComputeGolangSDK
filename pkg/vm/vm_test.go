@@ -1,6 +1,7 @@
 package vm
 
 import (
+	"context"
 	"fmt"
 	"github.com/KubeOperator/FusionComputeGolangSDK/pkg/client"
 	"github.com/KubeOperator/FusionComputeGolangSDK/pkg/site"
@@ -11,21 +12,24 @@ import (
 )
 
 func TestManager_List(t *testing.T) {
+	ctx := context.Background()
 	c := client.NewFusionComputeClient("https://100.199.16.208:7443", "kubeoperator", "Calong@2015")
-	err := c.Connect()
+	err := c.Connect(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer c.DisConnect()
+	defer c.DisConnect(ctx)
 
 	sm := site.NewManager(c)
-	ss, err := sm.ListSite()
+	ss, err := sm.ListSite(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}
 	for _, s := range ss {
 		cm := NewManager(c, s.Uri)
-		cs, err := cm.ListVm(true)
+		cs, err := cm.ListVm(ctx,&QueryVMParams{
+			IsTemplate: true,
+		})
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -34,14 +38,15 @@ func TestManager_List(t *testing.T) {
 }
 
 func TestManager_CloneVm(t *testing.T) {
+	ctx := context.Background()
 	c := client.NewFusionComputeClient("https://100.199.16.208:7443", "kubeoperator", "Calong@2015")
-	err := c.Connect()
+	err := c.Connect(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer c.DisConnect()
+	defer c.DisConnect(ctx)
 	m := NewManager(c, "/service/sites/43BC08E8")
-	ts, err := m.CloneVm("/service/sites/43BC08E8/vms/i-00000034", CloneVmRequest{
+	ts, err := m.CloneVm(ctx, "/service/sites/43BC08E8/vms/i-00000034", CloneVmRequest{
 		Name:          "test-1",
 		Description:   "test create vm",
 		Location:      "urn:sites:43BC08E8:clusters:117",
@@ -95,7 +100,7 @@ func TestManager_CloneVm(t *testing.T) {
 
 	tm := task.NewManager(c, "/service/sites/43BC08E8")
 	for {
-		tt, err := tm.Get(ts.TaskUri)
+		tt, err := tm.Get(ctx, ts.TaskUri)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -106,7 +111,7 @@ func TestManager_CloneVm(t *testing.T) {
 		time.Sleep(5 * time.Second)
 	}
 
-	err = m.DeleteVm(ts.Uri)
+	_, err = m.DeleteVm(ctx, ts.Uri)
 	if err != nil {
 		log.Fatal(err)
 	}

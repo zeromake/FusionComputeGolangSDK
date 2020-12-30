@@ -2,19 +2,17 @@ package network
 
 import (
 	"context"
-	"encoding/json"
+	"fmt"
 	"github.com/KubeOperator/FusionComputeGolangSDK/pkg/client"
 	"github.com/KubeOperator/FusionComputeGolangSDK/pkg/common"
 	"github.com/KubeOperator/FusionComputeGolangSDK/pkg/vm"
 	"path"
-	"strings"
 )
 
 const (
-	siteMask     = "<site_uri>"
-	dvSwitchUrl  = "<site_uri>/dvswitchs"
-	vmScopeUrl   = "<site_uri>/vms?scope=<resource_urn>"
-	portGroupUrl = "<site_uri>/portgroups"
+	dvSwitchUrl  = "%s/dvswitchs"
+	vmScopeUrl   = "%s/vms?scope=%s"
+	portGroupUrl = "%s/portgroups"
 )
 
 type Manager interface {
@@ -34,95 +32,80 @@ type manager struct {
 }
 
 func (m *manager) ListPortGroup(ctx context.Context) ([]PortGroup, error) {
-	var portGroups []PortGroup
+	var listPortGroupResponse ListPortGroupResponse
 	api, err := m.client.GetApiClient()
 	if err != nil {
 		return nil, err
 	}
-	resp, err := api.R().SetContext(ctx).Get(strings.Replace(portGroupUrl, siteMask, m.siteUri, -1))
+	resp, err := api.R().
+		SetContext(ctx).
+		SetResult(&listPortGroupResponse).
+		Get(fmt.Sprintf(portGroupUrl, m.siteUri))
 	if err != nil {
 		return nil, err
 	}
-	if resp.IsSuccess() {
-		var listPortGroupResponse ListPortGroupResponse
-		err := json.Unmarshal(resp.Body(), &listPortGroupResponse)
-		if err != nil {
-			return nil, err
-		}
-		portGroups = listPortGroupResponse.PortGroups
-	} else {
+	if !resp.IsSuccess() {
 		return nil, common.FormatHttpError(resp)
 	}
-	return portGroups, nil
+	return listPortGroupResponse.PortGroups, nil
 }
 
 func (m *manager) ListPortGroupBySwitch(ctx context.Context, dvSwitchIdUri string) ([]PortGroup, error) {
-
-	var portGroups []PortGroup
+	var listPortGroupResponse ListPortGroupResponse
 	api, err := m.client.GetApiClient()
 	if err != nil {
 		return nil, err
 	}
-	resp, err := api.R().SetContext(ctx).Get(path.Join(dvSwitchIdUri, "portgroups"))
+	resp, err := api.R().
+		SetContext(ctx).
+		SetResult(&listPortGroupResponse).
+		Get(path.Join(dvSwitchIdUri, "portgroups"))
 	if err != nil {
 		return nil, err
 	}
-	if resp.IsSuccess() {
-		var listPortGroupResponse ListPortGroupResponse
-		err := json.Unmarshal(resp.Body(), &listPortGroupResponse)
-		if err != nil {
-			return nil, err
-		}
-		portGroups = listPortGroupResponse.PortGroups
-	} else {
+	if !resp.IsSuccess() {
 		return nil, common.FormatHttpError(resp)
 	}
-	return portGroups, nil
+	return listPortGroupResponse.PortGroups, nil
 }
 
 func (m *manager) ListDVSwitch(ctx context.Context) ([]DVSwitch, error) {
-	var dvSwitchs []DVSwitch
+	var listDVSwitchResponse ListDVSwitchResponse
 	api, err := m.client.GetApiClient()
 	if err != nil {
 		return nil, err
 	}
-	resp, err := api.R().SetContext(ctx).Get(strings.Replace(dvSwitchUrl, siteMask, m.siteUri, -1))
+	resp, err := api.R().
+		SetContext(ctx).
+		SetResult(&listDVSwitchResponse).
+		Get(fmt.Sprintf(dvSwitchUrl, m.siteUri))
 	if err != nil {
 		return nil, err
 	}
-	if resp.IsSuccess() {
-		var listDVSwitchResponse ListDVSwitchResponse
-		err := json.Unmarshal(resp.Body(), &listDVSwitchResponse)
-		if err != nil {
-			return nil, err
-		}
-		dvSwitchs = listDVSwitchResponse.DVSwitchs
-	} else {
+	if !resp.IsSuccess() {
 		return nil, common.FormatHttpError(resp)
 	}
-	return dvSwitchs, nil
+	return listDVSwitchResponse.DVSwitchs, nil
 }
 
 func (m *manager) ListPortGroupInUseIp(ctx context.Context, portGroupUrn string) ([]string, error) {
 	var results []string
+	var listVmResponse vm.ListVmResponse
 	api, err := m.client.GetApiClient()
 	if err != nil {
 		return nil, err
 	}
-	resp, err := api.R().SetContext(ctx).Get(strings.Replace(strings.Replace(vmScopeUrl, siteMask, m.siteUri, -1), "<resource_urn>", portGroupUrn, -1))
+	resp, err := api.R().
+		SetContext(ctx).
+		SetResult(&listVmResponse).
+		Get(fmt.Sprintf(vmScopeUrl, m.siteUri, portGroupUrn))
 	if err != nil {
 		return nil, err
 	}
-	var vms []vm.Vm
-	if resp.IsSuccess() {
-		var listVmResponse vm.ListVmResponse
-		err := json.Unmarshal(resp.Body(), &listVmResponse)
-		if err != nil {
-			return nil, err
-		}
-		vms = listVmResponse.Vms
+	if !resp.IsSuccess() {
+		return nil, common.FormatHttpError(resp)
 	}
-	for _, v := range vms {
+	for _, v := range listVmResponse.Vms {
 		for _, nic := range v.VmConfig.Nics {
 			if nic.Ip != "0.0.0.0" {
 				results = append(results, nic.Ip)

@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"github.com/KubeOperator/FusionComputeGolangSDK/pkg/common"
 )
 
@@ -31,24 +30,25 @@ type auth struct {
 }
 
 func (a *auth) Login(ctx context.Context) error {
+	var loginResponse LoginResponse
 	host := a.client.GetHost()
 	r := common.NewHttpClient()
 	r.SetHostURL(host).
 		SetHeader(XAuthUser, a.client.GetUser()).
 		SetHeader(XAuthKey, encodePassword(a.client.GetPassword())).
 		SetHeader(XAuthUserType, a.client.GetUserType())
-	resp, err := r.R().SetContext(ctx).Post(authUri)
+	resp, err := r.R().
+		SetContext(ctx).
+		SetResult(&loginResponse).
+		Post(authUri)
 	if err != nil {
 		return err
 	}
-	if resp.IsSuccess() {
-		var loginResponse LoginResponse
-		_ = json.Unmarshal(resp.Body(), &loginResponse)
-		token := resp.Header().Get(XAuthToken)
-		a.client.SetSession(token)
-	} else {
+	if !resp.IsSuccess() {
 		return common.FormatHttpError(resp)
 	}
+	token := resp.Header().Get(XAuthToken)
+	a.client.SetSession(token)
 	return nil
 }
 
@@ -57,7 +57,9 @@ func (a *auth) Logout(ctx context.Context) error {
 	r := common.NewHttpClient()
 	r.SetHostURL(host).
 		SetHeader(XAuthToken, string(a.client.GetSession()))
-	resp, err := r.R().SetContext(ctx).Delete(authUri)
+	resp, err := r.R().
+		SetContext(ctx).
+		Delete(authUri)
 	if err != nil {
 		return err
 	}

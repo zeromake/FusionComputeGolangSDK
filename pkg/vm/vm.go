@@ -3,7 +3,6 @@ package vm
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/KubeOperator/FusionComputeGolangSDK/pkg/client"
@@ -14,8 +13,8 @@ import (
 )
 
 const (
-	siteMask = "<site_uri>"
-	vmUrl    = "<site_uri>/vms"
+	//siteMask = "<site_uri>"
+	vmUrl = "%s/vms"
 )
 
 type Manager interface {
@@ -25,6 +24,7 @@ type Manager interface {
 	CloneVm(ctx context.Context, templateUri string, request CloneVmRequest) (*CloneVmResponse, error)
 	DeleteVm(ctx context.Context, vmUri string) (*DeleteVmResponse, error)
 	UploadImage(ctx context.Context, vmUri string, request ImportTemplateRequest) (*ImportTemplateResponse, error)
+	UpdateVM(ctx context.Context, vmUri string, request UpdateVmRequest) (*DeleteVmResponse, error)
 }
 
 func NewManager(client client.FusionComputeClient, siteUri string) Manager {
@@ -66,17 +66,15 @@ func (m *manager) CloneVm(ctx context.Context, templateUri string, request Clone
 	if err != nil {
 		return nil, err
 	}
-	resp, err := api.R().SetContext(ctx).SetBody(&request).Post(path.Join(templateUri, "action", "clone"))
+	resp, err := api.R().
+		SetContext(ctx).
+		SetBody(&request).
+		SetResult(&cloneVmResponse).
+		Post(path.Join(templateUri, "action", "clone"))
 	if err != nil {
 		return nil, err
 	}
-	if resp.IsSuccess() {
-		err := json.Unmarshal(resp.Body(), &cloneVmResponse)
-		if err != nil {
-			return nil, err
-		}
-
-	} else {
+	if !resp.IsSuccess() {
 		return nil, common.FormatHttpError(resp)
 	}
 	return &cloneVmResponse, nil
@@ -88,7 +86,9 @@ func (m *manager) ListVm(ctx context.Context, params *QueryVMParams) (*ListVmRes
 	if err != nil {
 		return nil, err
 	}
-	request := api.R().SetContext(ctx)
+	request := api.R().
+		SetContext(ctx).
+		SetResult(&listVmResponse)
 	if params.IsTemplate {
 		request.SetQueryParam("isTemplate", "true")
 	}
@@ -98,16 +98,11 @@ func (m *manager) ListVm(ctx context.Context, params *QueryVMParams) (*ListVmRes
 	if params.Limit != 0 {
 		request.SetQueryParam("offset", strconv.FormatInt(params.Offset, 10))
 	}
-	resp, err := request.Get(strings.Replace(vmUrl, siteMask, m.siteUri, -1))
+	resp, err := request.Get(fmt.Sprintf(vmUrl, m.siteUri))
 	if err != nil {
 		return nil, err
 	}
-	if resp.IsSuccess() {
-		err := json.Unmarshal(resp.Body(), &listVmResponse)
-		if err != nil {
-			return nil, err
-		}
-	} else {
+	if !resp.IsSuccess() {
 		return nil, common.FormatHttpError(resp)
 	}
 	return &listVmResponse, nil
@@ -119,16 +114,14 @@ func (m *manager) DeleteVm(ctx context.Context, vmUri string) (*DeleteVmResponse
 	if err != nil {
 		return nil, err
 	}
-	resp, err := api.R().SetContext(ctx).Delete(vmUri)
+	resp, err := api.R().
+		SetContext(ctx).
+		SetResult(&deleteVmResponse).
+		Delete(vmUri)
 	if err != nil {
 		return nil, err
 	}
-	if resp.IsSuccess() {
-		err := json.Unmarshal(resp.Body(), &deleteVmResponse)
-		if err != nil {
-			return nil, err
-		}
-	} else {
+	if !resp.IsSuccess() {
 		return nil, common.FormatHttpError(resp)
 	}
 	return &deleteVmResponse, nil
@@ -140,20 +133,38 @@ func (m *manager) GetVM(ctx context.Context, vmUri string) (*Vm, error) {
 	if err != nil {
 		return nil, err
 	}
-	resp, err := api.R().SetContext(ctx).Get(vmUri)
+	resp, err := api.R().
+		SetContext(ctx).
+		SetResult(&item).
+		Get(vmUri)
 
 	if err != nil {
 		return nil, err
 	}
-	if resp.IsSuccess() {
-		err := json.Unmarshal(resp.Body(), &item)
-		if err != nil {
-			return nil, err
-		}
-	} else {
+	if !resp.IsSuccess() {
 		return nil, common.FormatHttpError(resp)
 	}
 	return &item, nil
+}
+
+func (m *manager) UpdateVM(ctx context.Context, vmUri string, request UpdateVmRequest) (*DeleteVmResponse, error) {
+	var deleteVmResponse DeleteVmResponse
+	api, err := m.client.GetApiClient()
+	if err != nil {
+		return nil, err
+	}
+	resp, err := api.R().
+		SetContext(ctx).
+		SetBody(&request).
+		SetResult(&deleteVmResponse).
+		Put(vmUri)
+	if err != nil {
+		return nil, err
+	}
+	if !resp.IsSuccess() {
+		return nil, common.FormatHttpError(resp)
+	}
+	return &deleteVmResponse, nil
 }
 
 func (m *manager) UploadImage(ctx context.Context, vmUri string, request ImportTemplateRequest) (*ImportTemplateResponse, error) {
@@ -162,19 +173,18 @@ func (m *manager) UploadImage(ctx context.Context, vmUri string, request ImportT
 	if err != nil {
 		return nil, err
 	}
-	resp, err := api.R().SetContext(ctx).SetBody(&request).Post(path.Join(vmUri, "action", "import"))
+	resp, err := api.R().
+		SetContext(ctx).
+		SetBody(&request).
+		SetResult(&res).
+		Post(path.Join(vmUri, "action", "import"))
 	if err != nil {
 		return nil, err
 	}
-	if resp.IsSuccess() {
-		err := json.Unmarshal(resp.Body(), &res)
-		if err != nil {
-			return nil, err
-		}
-		return &res, nil
-	} else {
+	if !resp.IsSuccess() {
 		return nil, common.FormatHttpError(resp)
 	}
+	return &res, nil
 }
 
 func (m *manager) ListVMVersion(ctx context.Context) (*VersionResponse, error) {
@@ -183,24 +193,22 @@ func (m *manager) ListVMVersion(ctx context.Context) (*VersionResponse, error) {
 	if err != nil {
 		return nil, err
 	}
-	resp, err := api.R().SetContext(ctx).Get(path.Join(strings.Replace(vmUrl, siteMask, m.siteUri, -1), "osversions"))
+	resp, err := api.R().
+		SetContext(ctx).
+		SetResult(&res).
+		Get(path.Join(fmt.Sprintf(vmUrl, m.siteUri), "osversions"))
 	if err != nil {
 		return nil, err
 	}
-	if resp.IsSuccess() {
-		err := json.Unmarshal(resp.Body(), &res)
-		if err != nil {
-			return nil, err
-		}
-		return &res, nil
-	} else {
+	if !resp.IsSuccess() {
 		return nil, common.FormatHttpError(resp)
 	}
+	return &res, nil
 }
 
 func parseMask(num int) (mask string, err error) {
 	var buff bytes.Buffer
-	for i := 0; i < int(num); i++ {
+	for i := 0; i < num; i++ {
 		buff.WriteString("1")
 	}
 	for i := num; i < 32; i++ {
